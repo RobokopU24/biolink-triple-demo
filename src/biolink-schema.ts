@@ -22,17 +22,17 @@ export const biolinkSchema = z.object({
   subsets: z.object({
     model_organism_database: z.object({
       description: z.string(),
-    }).strict(),
+    }),
     translator_minimal: z.object({
       description: z.string(),
-    }).strict(),
+    }),
     samples: z.object({
       description: z.string(),
-    }).strict(),
+    }),
     testing: z.object({
       description: z.string(),
-    }).strict(),
-  }).strict(),
+    }),
+  }),
   imports: z.array(z.string()),
   types: z.record(z.object({
     description: z.string(),
@@ -42,6 +42,7 @@ export const biolinkSchema = z.object({
     notes: z.array(z.string()),
     aliases: z.array(z.string()),
     id_prefixes: z.array(z.string()),
+    uri: z.string(),
   }).merge(mappings).partial()),
 
   slots: z.record(z.object({
@@ -98,14 +99,20 @@ export const biolinkSchema = z.object({
     alt_descriptions: z.record(z.string()),
     notes: z.array(z.string()).or(z.string()),
     comments: z.array(z.string()),
-    examples: z.array(z.object({
-      value: z.string(),
-      description: z.string(),
-    }).partial()).or(z.unknown()),
+    examples: z.unknown(),
     see_also: z.array(z.string()).or(z.string()),
     values_from: z.array(z.string()),
     aliases: z.array(z.string()),
-    defining_slots: z.array(z.enum(["subject", "object", "predicate", "subject aspect qualifier", "subject context qualifier", "object aspect qualifier", "object context qualifier", "population context qualifier"])),
+    defining_slots: z.array(z.enum([
+      "subject",
+      "object",
+      "predicate",
+      "subject aspect qualifier",
+      "subject context qualifier",
+      "object aspect qualifier",
+      "object context qualifier",
+      "population context qualifier"
+    ])),
     id_prefixes: z.array(z.string()),
     in_subset: z.array(z.string()),
     union_of: z.array(z.string()),
@@ -122,15 +129,21 @@ export const biolinkSchema = z.object({
       multivalued: z.boolean(),
       domain: z.string(),
       range: z.string(),
+      subproperty_of: z.string(),
+      symmetric: z.boolean(),
+      values_from: z.array(z.string()),
+      role: z.string(),
+      aliases: z.array(z.string()),
       examples: z.array(z.object({
         value: z.string(),
         description: z.string(),
       }).partial())
     }).merge(mappings).partial().nullable()),
-  }).merge(mappings).partial().strict()),
+  }).merge(mappings).partial()),
 
   enums: z.record(z.object({
     description: z.string().nullish(),
+    in_subset: z.array(z.string()),
     permissible_values: z.record(z.object({
       is_a: z.string(),
       description: z.string(),
@@ -138,5 +151,5 @@ export const biolinkSchema = z.object({
       aliases: z.array(z.string()),
       meaning: z.string(),
     }).merge(mappings).partial().nullish())
-  }))
-}); // TODO: add strict
+  }).partial())
+});
