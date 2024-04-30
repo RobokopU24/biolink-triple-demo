@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+const mappings = z.object({
+  mappings: z.array(z.string()),
+  broad_mappings: z.array(z.string()).nullish(),
+  close_mappings: z.array(z.string()).nullish(),
+  narrow_mappings: z.array(z.string()).nullish(),
+  exact_mappings: z.array(z.string()).nullish(),
+  related_mappings: z.array(z.string()).nullish(),
+});
+
 export const biolinkSchema = z.object({
   id: z.string().url(),
   name: z.string(),
@@ -33,8 +42,7 @@ export const biolinkSchema = z.object({
     notes: z.array(z.string()),
     aliases: z.array(z.string()),
     id_prefixes: z.array(z.string()),
-    exact_mappings: z.array(z.string()),
-  }).partial()),
+  }).merge(mappings).partial()),
 
   slots: z.record(z.object({
     is_a: z.string(),
@@ -62,12 +70,6 @@ export const biolinkSchema = z.object({
     multivalued: z.boolean(),
     required: z.boolean(),
     in_subset: z.array(z.string()).or(z.string()), // only 'occurs together in literature with' isn't a string array
-    mappings: z.array(z.string()),
-    broad_mappings: z.array(z.string()),
-    close_mappings: z.array(z.string()),
-    narrow_mappings: z.array(z.string()),
-    exact_mappings: z.array(z.string()),
-    related_mappings: z.array(z.string()),
     local_names: z.object({
       ga4gh: z.string(),
       neo4j: z.string(),
@@ -83,7 +85,7 @@ export const biolinkSchema = z.object({
       opposite_of: z.string(),
       description: z.string(),
     }).partial(),
-  }).partial()),
+  }).merge(mappings).partial()),
 
   classes: z.record(z.object({
     is_a: z.string(),
@@ -120,19 +122,12 @@ export const biolinkSchema = z.object({
       multivalued: z.boolean(),
       domain: z.string(),
       range: z.string(),
-      mappings: z.array(z.string()),
       examples: z.array(z.object({
         value: z.string(),
         description: z.string(),
       }).partial())
-    }).partial().nullable()),
-    mappings: z.array(z.string()).nullish(),
-    broad_mappings: z.array(z.string()).nullish(),
-    close_mappings: z.array(z.string()).nullish(),
-    narrow_mappings: z.array(z.string()).nullish(),
-    exact_mappings: z.array(z.string()).nullish(),
-    related_mappings: z.array(z.string()).nullish(),
-  }).partial().strict()),
+    }).merge(mappings).partial().nullable()),
+  }).merge(mappings).partial().strict()),
 
   enums: z.record(z.object({
     description: z.string().nullish(),
@@ -140,14 +135,8 @@ export const biolinkSchema = z.object({
       is_a: z.string(),
       description: z.string(),
       notes: z.string(),
-      mappings: z.array(z.string()).nullish(),
-      broad_mappings: z.array(z.string()).nullish(),
-      close_mappings: z.array(z.string()).nullish(),
-      narrow_mappings: z.array(z.string()).nullish(),
-      exact_mappings: z.array(z.string()).nullish(),
-      related_mappings: z.array(z.string()).nullish(),
       aliases: z.array(z.string()),
       meaning: z.string(),
-    }).partial().nullish())
+    }).merge(mappings).partial().nullish())
   }))
 }); // TODO: add strict
