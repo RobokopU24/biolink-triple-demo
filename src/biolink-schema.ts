@@ -9,21 +9,6 @@ const mappings = z.object({
   related_mappings: z.array(z.string()).nullish(),
 });
 
-const subsets = z.object({
-  model_organism_database: z.object({
-    description: z.string(),
-  }),
-  translator_minimal: z.object({
-    description: z.string(),
-  }),
-  samples: z.object({
-    description: z.string(),
-  }),
-  testing: z.object({
-    description: z.string(),
-  }),
-})
-
 export const biolinkSchema = z.object({
   id: z.string().url(),
   name: z.string(),
@@ -34,7 +19,9 @@ export const biolinkSchema = z.object({
   default_range: z.string(),
   default_curi_maps: z.array(z.string()),
   emit_prefixes: z.array(z.string()),
-  subsets,
+  subsets: z.record(z.object({
+    description: z.string(),
+  }).partial()),
   imports: z.array(z.string()),
   types: z.record(z.object({
     description: z.string(),
@@ -72,13 +59,8 @@ export const biolinkSchema = z.object({
     range: z.string(),
     multivalued: z.boolean(),
     required: z.boolean(),
-    in_subset: z.array(subsets.keyof()).or(subsets.keyof()),
-    local_names: z.object({
-      ga4gh: z.string(),
-      neo4j: z.string(),
-      translator: z.string(),
-      agr: z.string(),
-    }).partial(),
+    in_subset: z.array(z.string()).or(z.string()),
+    local_names: z.record(z.string()),
     ifabsent: z.string(),
     symmetric: z.boolean(),
     examples: z.array(z.unknown()),
@@ -105,25 +87,11 @@ export const biolinkSchema = z.object({
     see_also: z.array(z.string()).or(z.string()),
     values_from: z.array(z.string()),
     aliases: z.array(z.string()),
-    defining_slots: z.array(z.enum([
-      "subject",
-      "object",
-      "predicate",
-      "subject aspect qualifier",
-      "subject context qualifier",
-      "object aspect qualifier",
-      "object context qualifier",
-      "population context qualifier"
-    ])),
+    defining_slots: z.array(z.string()),
     id_prefixes: z.array(z.string()),
-    in_subset: z.array(subsets.keyof()),
+    in_subset: z.array(z.string()),
     union_of: z.array(z.string()),
-    local_names: z.object({
-      ga4gh: z.string(),
-      neo4j: z.string(),
-      translator: z.string(),
-      agr: z.string(),
-    }).partial(),
+    local_names: z.record(z.string()),
     slots: z.array(z.string()),
     slot_usage: z.record(z.object({
       description:  z.string(),
@@ -136,16 +104,13 @@ export const biolinkSchema = z.object({
       values_from: z.array(z.string()),
       role: z.string(),
       aliases: z.array(z.string()),
-      examples: z.array(z.object({
-        value: z.string(),
-        description: z.string(),
-      }).partial())
+      examples: z.unknown(),
     }).merge(mappings).partial().nullable()),
   }).merge(mappings).partial()),
 
   enums: z.record(z.object({
     description: z.string().nullish(),
-    in_subset: z.array(subsets.keyof()),
+    in_subset: z.array(z.string()),
     permissible_values: z.record(z.object({
       is_a: z.string(),
       description: z.string(),
