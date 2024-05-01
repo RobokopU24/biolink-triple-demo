@@ -4,7 +4,7 @@ import { slots } from "./slots";
 import { classes } from "./classes";
 import { enums } from "./enums";
 
-export const biolinkSchema = z.object({
+export const full = z.object({
   id: z.string().url(),
   name: z.string(),
   description: z.string(),
@@ -33,3 +33,5 @@ export const biolinkSchema = z.object({
   classes,
   enums,
 });
+
+export interface BiolinkSchema extends z.infer<typeof full> {}
