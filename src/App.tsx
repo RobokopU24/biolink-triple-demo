@@ -1,7 +1,7 @@
 import { useEffect } from "react"
 import yaml from 'js-yaml';
 import biolinkModel from "./data/biolink-model.yaml";
-import { biolinkSchema } from "./biolink-schema";
+import { biolinkSchema } from "./validation/biolink/full";
 
 function App() {
   useEffect(() => {
@@ -25,4 +25,4 @@ function App() {
   )
 }
 
-export default App
+export default App;
