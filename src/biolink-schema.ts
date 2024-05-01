@@ -9,6 +9,21 @@ const mappings = z.object({
   related_mappings: z.array(z.string()).nullish(),
 });
 
+const subsets = z.object({
+  model_organism_database: z.object({
+    description: z.string(),
+  }),
+  translator_minimal: z.object({
+    description: z.string(),
+  }),
+  samples: z.object({
+    description: z.string(),
+  }),
+  testing: z.object({
+    description: z.string(),
+  }),
+})
+
 export const biolinkSchema = z.object({
   id: z.string().url(),
   name: z.string(),
@@ -19,20 +34,7 @@ export const biolinkSchema = z.object({
   default_range: z.string(),
   default_curi_maps: z.array(z.string()),
   emit_prefixes: z.array(z.string()),
-  subsets: z.object({
-    model_organism_database: z.object({
-      description: z.string(),
-    }),
-    translator_minimal: z.object({
-      description: z.string(),
-    }),
-    samples: z.object({
-      description: z.string(),
-    }),
-    testing: z.object({
-      description: z.string(),
-    }),
-  }),
+  subsets,
   imports: z.array(z.string()),
   types: z.record(z.object({
     description: z.string(),
@@ -70,7 +72,7 @@ export const biolinkSchema = z.object({
     range: z.string(),
     multivalued: z.boolean(),
     required: z.boolean(),
-    in_subset: z.array(z.string()).or(z.string()), // only 'occurs together in literature with' isn't a string array
+    in_subset: z.array(subsets.keyof()).or(subsets.keyof()),
     local_names: z.object({
       ga4gh: z.string(),
       neo4j: z.string(),
@@ -114,7 +116,7 @@ export const biolinkSchema = z.object({
       "population context qualifier"
     ])),
     id_prefixes: z.array(z.string()),
-    in_subset: z.array(z.string()),
+    in_subset: z.array(subsets.keyof()),
     union_of: z.array(z.string()),
     local_names: z.object({
       ga4gh: z.string(),
@@ -143,7 +145,7 @@ export const biolinkSchema = z.object({
 
   enums: z.record(z.object({
     description: z.string().nullish(),
-    in_subset: z.array(z.string()),
+    in_subset: z.array(subsets.keyof()),
     permissible_values: z.record(z.object({
       is_a: z.string(),
       description: z.string(),
