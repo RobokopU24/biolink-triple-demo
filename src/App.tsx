@@ -6,11 +6,21 @@ import { full as biolinkSchema, type BiolinkSchema } from "./validation/biolink/
 interface TreeNode {
   parent: TreeNode | null;
   children: TreeNode[];
+  mixinParents: TreeNode[] | null;
+  mixinChildren: TreeNode[] | null;
 }
 
 interface ClassNode extends TreeNode {
   name: string
 }
+
+const newClassNode = (name: string): ClassNode => ({
+  name,
+  parent: null,
+  children: [],
+  mixinParents: null,
+  mixinChildren: null,
+})
 
 // interface Model {
 //   namedThings: ClassNode;
@@ -39,11 +49,7 @@ function App() {
       const lookup = new Map<string, ClassNode>();
       for (const [name, cls] of Object.entries(flatModel.classes)) {
         if (!lookup.has(name)) {
-          lookup.set(name, {
-            name,
-            parent: null,
-            children: [],
-          });
+          lookup.set(name, newClassNode(name));
         }
 
         const thisNode = lookup.get(name)!;
@@ -54,13 +60,33 @@ function App() {
         }
         else {
           if(!lookup.has(parentName)) {
-            lookup.set(parentName, { name: parentName, children: [], parent: null })
+            lookup.set(parentName, newClassNode(parentName))
           }
           
           const parentNode = lookup.get(parentName)!;
           parentNode.children.push(thisNode);
           thisNode.parent = parentNode;
         }
+
+        // this node has mixins parents
+        const mixinNames = cls.mixins ?? null;
+        if (mixinNames) {
+          for (const mixinName of mixinNames) {
+            if(!lookup.has(mixinName)) {
+              lookup.set(mixinName, newClassNode(mixinName))
+            }
+
+            const mixinNode = lookup.get(mixinName)!;
+            mixinNode.mixinChildren 
+              ? mixinNode.mixinChildren.push(thisNode)
+              : mixinNode.mixinChildren = [thisNode];
+            
+            thisNode.mixinParents
+              ? thisNode.mixinParents.push(mixinNode)
+              : thisNode.mixinParents = [mixinNode];
+          }
+        }
+
       }
 
       // console.log(rootItems);
