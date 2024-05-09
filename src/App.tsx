@@ -10,8 +10,8 @@ interface TreeNode<T extends TreeNode<T>> {
   uuid: string;
   parent: T | null;
   children: T[];
-  mixinParents: T[] | null;
-  mixinChildren: T[] | null;
+  mixinParents: T[];
+  mixinChildren: T[];
 }
 
 interface ClassNode extends TreeNode<ClassNode> {
@@ -23,8 +23,8 @@ const newClassNode = (name: string): ClassNode => ({
   uuid: crypto.randomUUID(),
   parent: null,
   children: [],
-  mixinParents: null,
-  mixinChildren: null,
+  mixinParents: [],
+  mixinChildren: [],
 });
 
 interface Model {
@@ -34,18 +34,18 @@ interface Model {
   };
 }
 
-// const buildJsxTrees = <T extends TreeNode<T>>(rootNodes: TreeNode<T>[]) => {
-//   return rootNodes.map((node) => {
-
-//   })
-// }
-
 const buildJsxTree = (rootItems: ClassNode[]) =>
   rootItems.map(({ uuid, name, children, mixinChildren }) => (
     <li key={uuid}>
       {name}
-      {mixinChildren !== null && mixinChildren.length > 0 ? <ul style={{ backgroundColor: "papayawhip" }}>{buildJsxTree(mixinChildren)}</ul> : null}
-      {children.length > 0 ? <ul style={{ backgroundColor: "white" }}>{buildJsxTree(children)}</ul> : null}
+      {mixinChildren !== null && mixinChildren.length > 0 ? (
+        <ul style={{ backgroundColor: "papayawhip" }}>
+          {buildJsxTree(mixinChildren)}
+        </ul>
+      ) : null}
+      {children.length > 0 ? (
+        <ul style={{ backgroundColor: "white" }}>{buildJsxTree(children)}</ul>
+      ) : null}
     </li>
   ));
 
@@ -101,13 +101,8 @@ function App() {
             }
 
             const mixinNode = lookup.get(mixinName)!;
-            mixinNode.mixinChildren
-              ? mixinNode.mixinChildren.push(thisNode)
-              : (mixinNode.mixinChildren = [thisNode]);
-
-            thisNode.mixinParents
-              ? thisNode.mixinParents.push(mixinNode)
-              : (thisNode.mixinParents = [mixinNode]);
+            mixinNode.mixinChildren.push(thisNode);
+            thisNode.mixinParents.push(mixinNode);
           }
         }
       }
@@ -129,8 +124,6 @@ function App() {
       setInitializing(false);
     })();
   }, []);
-
-
 
   if (!model) return "Loading!";
 
@@ -187,9 +180,7 @@ function App() {
         </select>
       </label>
 
-      <ul>
-        {buildJsxTree(model.classes.treeRootNodes)}
-      </ul>
+      <ul>{buildJsxTree(model.classes.treeRootNodes)}</ul>
     </div>
   );
 }
