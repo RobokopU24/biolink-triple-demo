@@ -18,6 +18,14 @@ interface ClassNode extends TreeNode<ClassNode> {
   name: string;
   abstract: boolean;
   mixin: boolean;
+
+  slotUsage?: {
+    subject?: ClassNode;
+    predicate?: SlotNode;
+    object?: ClassNode;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    [qualifiers: string]: any;
+  };
 }
 
 const newClassNode = (name: string): ClassNode => ({
@@ -57,6 +65,7 @@ interface Model {
     treeRootNodes: SlotNode[];
     lookup: Map<string, SlotNode>;
   };
+  associations: ClassNode;
 }
 
 const buildJsxTree = (rootItems: ClassNode[]) =>
@@ -89,46 +98,6 @@ function App() {
       const t0 = performance.now();
       const biolinkJson = yaml.load(yamlString);
       const flatModel: BiolinkSchema = biolinkSchema.parse(biolinkJson);
-
-      const rootItems: ClassNode[] = [];
-      const lookup = new Map<string, ClassNode>();
-      for (const [name, cls] of Object.entries(flatModel.classes)) {
-        if (!lookup.has(name)) {
-          lookup.set(name, newClassNode(name));
-        }
-
-        const thisNode = lookup.get(name)!;
-
-        const parentName = cls.is_a ?? null;
-        if (!parentName) {
-          rootItems.push(thisNode);
-        } else {
-          if (!lookup.has(parentName)) {
-            lookup.set(parentName, newClassNode(parentName));
-          }
-
-          const parentNode = lookup.get(parentName)!;
-          parentNode.children.push(thisNode);
-          thisNode.parent = parentNode;
-        }
-
-        thisNode.abstract = cls.abstract ?? false;
-        thisNode.mixin = cls.mixin ?? false;
-
-        // this node has mixins parents
-        const mixinNames = cls.mixins ?? null;
-        if (mixinNames) {
-          for (const mixinName of mixinNames) {
-            if (!lookup.has(mixinName)) {
-              lookup.set(mixinName, newClassNode(mixinName));
-            }
-
-            const mixinNode = lookup.get(mixinName)!;
-            mixinNode.mixinChildren.push(thisNode);
-            thisNode.mixinParents.push(mixinNode);
-          }
-        }
-      }
 
       const slotRootItems: SlotNode[] = [];
       const slotLookup = new Map<string, SlotNode>();
@@ -170,6 +139,63 @@ function App() {
         }
       }
 
+      const rootItems: ClassNode[] = [];
+      const lookup = new Map<string, ClassNode>();
+      for (const [name, cls] of Object.entries(flatModel.classes)) {
+        if (!lookup.has(name)) {
+          lookup.set(name, newClassNode(name));
+        }
+
+        const thisNode = lookup.get(name)!;
+
+        const parentName = cls.is_a ?? null;
+        if (!parentName) {
+          rootItems.push(thisNode);
+        } else {
+          if (!lookup.has(parentName)) {
+            lookup.set(parentName, newClassNode(parentName));
+          }
+
+          const parentNode = lookup.get(parentName)!;
+          parentNode.children.push(thisNode);
+          thisNode.parent = parentNode;
+        }
+
+        thisNode.abstract = cls.abstract ?? false;
+        thisNode.mixin = cls.mixin ?? false;
+
+        if (cls.slot_usage) {
+          thisNode.slotUsage = cls.slot_usage;
+
+          thisNode.slotUsage.subject = cls.slot_usage.subject?.range
+            ? lookup.get(cls.slot_usage.subject?.range)
+            : undefined;
+
+          thisNode.slotUsage.object = cls.slot_usage.object?.range
+            ? lookup.get(cls.slot_usage.object?.range)
+            : undefined;
+
+          thisNode.slotUsage.predicate = cls.slot_usage.predicate
+            ?.subproperty_of
+            ? slotLookup.get(cls.slot_usage.predicate?.subproperty_of)
+            : undefined;
+        }
+
+        // this node has mixins parents
+        const mixinNames = cls.mixins ?? null;
+        if (mixinNames) {
+          for (const mixinName of mixinNames) {
+            if (!lookup.has(mixinName)) {
+              lookup.set(mixinName, newClassNode(mixinName));
+            }
+
+            const mixinNode = lookup.get(mixinName)!;
+            mixinNode.mixinChildren.push(thisNode);
+            thisNode.mixinParents.push(mixinNode);
+          }
+        }
+      }
+
       setModel({
         classes: {
           treeRootNodes: rootItems,
@@ -179,7 +205,10 @@ function App() {
           treeRootNodes: slotRootItems,
           lookup: slotLookup,
         },
+        associations: lookup.get("association")!,
       });
+
+      console.log(lookup.get("association")!);
 
       const namedThings: ClassNode[] = [];
       const traverse = (nodes: ClassNode[]) => {
