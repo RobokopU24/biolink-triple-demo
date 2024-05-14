@@ -128,10 +128,10 @@ function App() {
 
       setTime(performance.now() - t0);
       setSubjectOptions(namedThings);
-      setSubject(lookup.get("named thing")!);
+      setSubject(lookup.get("gene")!);
       setPredicateOptions([]);
       setObjectOptions(namedThings);
-      setObject(lookup.get("named thing")!);
+      setObject(lookup.get("chemical entity")!);
       setInitializing(false);
     })();
   }, []);
@@ -155,11 +155,13 @@ function App() {
           }
           disabled={initializing}
         >
-          {subjectOptions.map((opt) => (
-            <option key={opt.uuid} value={opt.name}>
-              {opt.name}
-            </option>
-          ))}
+          {subjectOptions
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map((opt) => (
+              <option key={opt.uuid} value={opt.name}>
+                {opt.name}
+              </option>
+            ))}
         </select>
       </label>
 
@@ -185,11 +187,13 @@ function App() {
           onChange={(e) => setObject(model.classes.lookup.get(e.target.value)!)}
           disabled={initializing}
         >
-          {objectOptions.map((opt) => (
-            <option key={opt.uuid} value={opt.name}>
-              {opt.name}
-            </option>
-          ))}
+          {objectOptions
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map((opt) => (
+              <option key={opt.uuid} value={opt.name}>
+                {opt.name}
+              </option>
+            ))}
         </select>
       </label>
     </div>
