@@ -90,6 +90,8 @@ function App() {
   const [predicateOptions, setPredicateOptions] = useState<SlotNode[]>([]);
   const [objectOptions, setObjectOptions] = useState<ClassNode[]>([]);
 
+  const [validAssociations, setValidAssociations] = useState<ClassNode[]>([]);
+
   const [model, setModel] = useState<Model | null>(null);
 
   useEffect(() => {
@@ -208,8 +210,6 @@ function App() {
         associations: lookup.get("association")!,
       });
 
-      console.log(lookup.get("association")!);
-
       const namedThings: ClassNode[] = [];
       const traverse = (nodes: ClassNode[]) => {
         for (const node of nodes) {
@@ -245,6 +245,64 @@ function App() {
       setInitializing(false);
     })();
   }, []);
+
+  useEffect(() => {
+    if (!subject || !predicate || !object || !model) return;
+
+    const validAssociations: ClassNode[] = [];
+    const namedThing = model.classes.lookup.get("named thing")!;
+    const relatedTo = model.slots.lookup.get("related to")!;
+
+    const isInRange = <T extends TreeNode<T>>(
+      n: TreeNode<T>,
+      range: TreeNode<T>
+    ): boolean => {
+      const traverse = (nodes: TreeNode<T>[], search: TreeNode<T>): boolean => {
+        for (const n of nodes) {
+          if (n === search) return true;
+          if (n.parent) {
+            if (traverse([n.parent], search)) return true;
+          }
+          if (n.mixinParents) {
+            if (traverse(n.mixinParents, search)) return true;
+          }
+        }
+        return false;
+      };
+      return traverse([n], range);
+    };
+
+    // DFS over associations
+    const traverse = (nodes: ClassNode[]) => {
+      for (const association of nodes) {
+        if (
+          association.slotUsage &&
+          !association.abstract &&
+          !association.mixin
+        ) {
+          const { slotUsage } = association;
+
+          const validSubject = isInRange(
+            subject,
+            slotUsage.subject ?? namedThing
+          );
+          const validObject = isInRange(object, slotUsage.object ?? namedThing);
+          const validPredicate = isInRange(
+            predicate,
+            slotUsage.predicate ?? relatedTo
+          );
+
+          if (validSubject && validObject && validPredicate) {
+            validAssociations.push(association);
+          }
+        }
+        traverse(association.children);
+      }
+    };
+    traverse([model.associations]);
+
+    setValidAssociations(validAssociations);
+  }, [subject, predicate, object, model]);
 
   if (!model) return "Loading!";
 
@@ -310,6 +368,30 @@ function App() {
             ))}
         </select>
       </label>
+
+      {validAssociations.length > 0 && (
+        <>
+          <h2>Valid Associations</h2>
+          {validAssociations.map((node) => (
+            <details key={node.uuid}>
+              <summary>
+                <strong>{node.name}</strong>
+              </summary>
+
+              <p>Subject range: {node.slotUsage?.subject?.name ?? "N/A"}</p>
+              <p>Predicate range: {node.slotUsage?.predicate?.name ?? "N/A"}</p>
+              <p>Object range: {node.slotUsage?.object?.name ?? "N/A"}</p>
+
+              {node.slotUsage ? (
+                <>
+                  <h3>Slots:</h3>
+                  <pre>{Object.keys(node.slotUsage).join("\n")}</pre>
+                </>
+              ) : null}
+            </details>
+          ))}
+        </>
+      )}
     </div>
   );
 }
