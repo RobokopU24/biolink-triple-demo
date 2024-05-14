@@ -16,6 +16,8 @@ interface TreeNode<T extends TreeNode<T>> {
 
 interface ClassNode extends TreeNode<ClassNode> {
   name: string;
+  abstract: boolean;
+  mixin: boolean;
 }
 
 const newClassNode = (name: string): ClassNode => ({
@@ -25,6 +27,8 @@ const newClassNode = (name: string): ClassNode => ({
   children: [],
   mixinParents: [],
   mixinChildren: [],
+  abstract: false,
+  mixin: false,
 });
 
 interface Model {
@@ -35,14 +39,9 @@ interface Model {
 }
 
 const buildJsxTree = (rootItems: ClassNode[]) =>
-  rootItems.map(({ uuid, name, children, mixinChildren }) => (
+  rootItems.map(({ uuid, name, children }) => (
     <li key={uuid}>
       {name}
-      {mixinChildren !== null && mixinChildren.length > 0 ? (
-        <ul style={{ backgroundColor: "papayawhip" }}>
-          {buildJsxTree(mixinChildren)}
-        </ul>
-      ) : null}
       {children.length > 0 ? (
         <ul style={{ backgroundColor: "white" }}>{buildJsxTree(children)}</ul>
       ) : null}
@@ -53,13 +52,13 @@ function App() {
   const [initializing, setInitializing] = useState(true);
   const [time, setTime] = useState<null | number>(null);
 
-  const [subject, setSubject] = useState<string | undefined>(undefined);
+  const [subject, setSubject] = useState<ClassNode | undefined>(undefined);
   const [predicate, setPredicate] = useState<string | undefined>(undefined);
-  const [object, setObject] = useState<string | undefined>(undefined);
+  const [object, setObject] = useState<ClassNode | undefined>(undefined);
 
-  const [subjectOptions, setSubjectOptions] = useState<string[]>([]);
+  const [subjectOptions, setSubjectOptions] = useState<ClassNode[]>([]);
   const [predicateOptions, setPredicateOptions] = useState<string[]>([]);
-  const [objectOptions, setObjectOptions] = useState<string[]>([]);
+  const [objectOptions, setObjectOptions] = useState<ClassNode[]>([]);
 
   const [model, setModel] = useState<Model | null>(null);
 
@@ -90,6 +89,8 @@ function App() {
           const parentNode = lookup.get(parentName)!;
           parentNode.children.push(thisNode);
           thisNode.parent = parentNode;
+          thisNode.abstract = cls.abstract ?? false;
+          thisNode.mixin = cls.mixin ?? false;
         }
 
         // this node has mixins parents
@@ -114,13 +115,23 @@ function App() {
         },
       });
 
-      // console.log(rootItems);
-      // console.log(lookup)
+      const namedThings: ClassNode[] = [];
+      const traverse = (nodes: ClassNode[]) => {
+        for (const node of nodes) {
+          if (!node.abstract && !node.mixin) {
+            namedThings.push(node);
+          }
+          traverse(node.children);
+        }
+      };
+      traverse([lookup.get("named thing")!]);
 
       setTime(performance.now() - t0);
-      setSubjectOptions([]);
+      setSubjectOptions(namedThings);
+      setSubject(lookup.get("named thing")!);
       setPredicateOptions([]);
-      setObjectOptions([]);
+      setObjectOptions(namedThings);
+      setObject(lookup.get("named thing")!);
       setInitializing(false);
     })();
   }, []);
@@ -138,13 +149,15 @@ function App() {
       <label>
         Subject:
         <select
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
+          value={subject?.name}
+          onChange={(e) =>
+            setSubject(model.classes.lookup.get(e.target.value)!)
+          }
           disabled={initializing}
         >
           {subjectOptions.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
+            <option key={opt.uuid} value={opt.name}>
+              {opt.name}
             </option>
           ))}
         </select>
@@ -168,19 +181,17 @@ function App() {
       <label>
         Object:
         <select
-          value={object}
-          onChange={(e) => setObject(e.target.value)}
+          value={object?.name}
+          onChange={(e) => setObject(model.classes.lookup.get(e.target.value)!)}
           disabled={initializing}
         >
           {objectOptions.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
+            <option key={opt.uuid} value={opt.name}>
+              {opt.name}
             </option>
           ))}
         </select>
       </label>
-
-      <ul>{buildJsxTree(model.classes.treeRootNodes)}</ul>
     </div>
   );
 }
