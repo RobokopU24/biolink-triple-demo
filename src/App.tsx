@@ -31,10 +31,31 @@ const newClassNode = (name: string): ClassNode => ({
   mixin: false,
 });
 
+interface SlotNode extends TreeNode<SlotNode> {
+  name: string;
+  abstract: boolean;
+  mixin: boolean;
+}
+
+const newSlotNode = (name: string): SlotNode => ({
+  name,
+  uuid: crypto.randomUUID(),
+  parent: null,
+  children: [],
+  mixinParents: [],
+  mixinChildren: [],
+  abstract: false,
+  mixin: false,
+});
+
 interface Model {
   classes: {
     treeRootNodes: ClassNode[];
     lookup: Map<string, ClassNode>;
+  };
+  slots: {
+    treeRootNodes: SlotNode[];
+    lookup: Map<string, SlotNode>;
   };
 }
 
@@ -53,11 +74,11 @@ function App() {
   const [time, setTime] = useState<null | number>(null);
 
   const [subject, setSubject] = useState<ClassNode | undefined>(undefined);
-  const [predicate, setPredicate] = useState<string | undefined>(undefined);
+  const [predicate, setPredicate] = useState<SlotNode | undefined>(undefined);
   const [object, setObject] = useState<ClassNode | undefined>(undefined);
 
   const [subjectOptions, setSubjectOptions] = useState<ClassNode[]>([]);
-  const [predicateOptions, setPredicateOptions] = useState<string[]>([]);
+  const [predicateOptions, setPredicateOptions] = useState<SlotNode[]>([]);
   const [objectOptions, setObjectOptions] = useState<ClassNode[]>([]);
 
   const [model, setModel] = useState<Model | null>(null);
@@ -89,9 +110,10 @@ function App() {
           const parentNode = lookup.get(parentName)!;
           parentNode.children.push(thisNode);
           thisNode.parent = parentNode;
-          thisNode.abstract = cls.abstract ?? false;
-          thisNode.mixin = cls.mixin ?? false;
         }
+
+        thisNode.abstract = cls.abstract ?? false;
+        thisNode.mixin = cls.mixin ?? false;
 
         // this node has mixins parents
         const mixinNames = cls.mixins ?? null;
@@ -108,10 +130,54 @@ function App() {
         }
       }
 
+      const slotRootItems: SlotNode[] = [];
+      const slotLookup = new Map<string, SlotNode>();
+      for (const [name, slot] of Object.entries(flatModel.slots)) {
+        if (!slotLookup.has(name)) {
+          slotLookup.set(name, newSlotNode(name));
+        }
+
+        const thisNode = slotLookup.get(name)!;
+
+        const parentName = slot.is_a ?? null;
+        if (!parentName) {
+          slotRootItems.push(thisNode);
+        } else {
+          if (!slotLookup.has(parentName)) {
+            slotLookup.set(parentName, newSlotNode(parentName));
+          }
+
+          const parentNode = slotLookup.get(parentName)!;
+          parentNode.children.push(thisNode);
+          thisNode.parent = parentNode;
+        }
+
+        thisNode.abstract = slot.abstract ?? false;
+        thisNode.mixin = slot.mixin ?? false;
+
+        // this node has mixins parents
+        const mixinNames = slot.mixins ?? null;
+        if (mixinNames) {
+          for (const mixinName of mixinNames) {
+            if (!slotLookup.has(mixinName)) {
+              slotLookup.set(mixinName, newSlotNode(mixinName));
+            }
+
+            const mixinNode = slotLookup.get(mixinName)!;
+            mixinNode.mixinChildren.push(thisNode);
+            thisNode.mixinParents.push(mixinNode);
+          }
+        }
+      }
+
       setModel({
         classes: {
           treeRootNodes: rootItems,
           lookup,
+        },
+        slots: {
+          treeRootNodes: slotRootItems,
+          lookup: slotLookup,
         },
       });
 
@@ -126,12 +192,27 @@ function App() {
       };
       traverse([lookup.get("named thing")!]);
 
-      setTime(performance.now() - t0);
+      const relatedTo: SlotNode[] = [];
+      const traverseSlots = (nodes: SlotNode[]) => {
+        for (const node of nodes) {
+          if (!node.abstract && !node.mixin) {
+            relatedTo.push(node);
+          }
+          traverseSlots(node.children);
+        }
+      };
+      traverseSlots([slotLookup.get("related to")!]);
+
       setSubjectOptions(namedThings);
       setSubject(lookup.get("gene")!);
-      setPredicateOptions([]);
+
+      setPredicateOptions(relatedTo);
+      setPredicate(slotLookup.get("affects")!);
+
       setObjectOptions(namedThings);
       setObject(lookup.get("chemical entity")!);
+
+      setTime(performance.now() - t0);
       setInitializing(false);
     })();
   }, []);
@@ -168,15 +249,19 @@ function App() {
       <label>
         Predicate:
         <select
-          value={predicate}
-          onChange={(e) => setPredicate(e.target.value)}
+          value={predicate?.name}
+          onChange={(e) =>
+            setPredicate(model.slots.lookup.get(e.target.value)!)
+          }
           disabled={initializing}
         >
-          {predicateOptions.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
+          {predicateOptions
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map((opt) => (
+              <option key={opt.uuid} value={opt.name}>
+                {opt.name}
+              </option>
+            ))}
         </select>
       </label>
 
