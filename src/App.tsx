@@ -385,7 +385,19 @@ function App() {
               {node.slotUsage ? (
                 <>
                   <h3>Slots:</h3>
-                  <pre>{Object.keys(node.slotUsage).join("\n")}</pre>
+                  <pre>
+                    {yaml.dump(
+                      Object.entries(node.slotUsage).reduce(
+                        (acc, [key, val]) =>
+                          key === "object" ||
+                          key === "subject" ||
+                          key === "predicate"
+                            ? acc
+                            : { ...acc, [key]: val },
+                        {}
+                      )
+                    )}
+                  </pre>
                 </>
               ) : null}
             </details>
