@@ -90,7 +90,16 @@ function App() {
   const [predicateOptions, setPredicateOptions] = useState<SlotNode[]>([]);
   const [objectOptions, setObjectOptions] = useState<ClassNode[]>([]);
 
-  const [validAssociations, setValidAssociations] = useState<ClassNode[]>([]);
+  const [validAssociations, setValidAssociations] = useState<
+    {
+      association: ClassNode;
+      inheritedRanges: {
+        subject: ClassNode;
+        predicate: SlotNode;
+        object: ClassNode;
+      };
+    }[]
+  >([]);
 
   const [model, setModel] = useState<Model | null>(null);
 
@@ -249,9 +258,14 @@ function App() {
   useEffect(() => {
     if (!subject || !predicate || !object || !model) return;
 
-    const validAssociations: ClassNode[] = [];
-    const namedThing = model.classes.lookup.get("named thing")!;
-    const relatedTo = model.slots.lookup.get("related to")!;
+    const validAssociations: {
+      association: ClassNode;
+      inheritedRanges: {
+        subject: ClassNode;
+        predicate: SlotNode;
+        object: ClassNode;
+      };
+    }[] = [];
 
     const isInRange = <T extends TreeNode<T>>(
       n: TreeNode<T>,
@@ -272,6 +286,41 @@ function App() {
       return traverse([n], range);
     };
 
+    /**
+     * Get the inherited subject/predicate/object ranges for an association
+     */
+    const getInheritedSPORanges = (
+      association: ClassNode
+    ): { subject: ClassNode; predicate: SlotNode; object: ClassNode } => {
+      const namedThing = model.classes.lookup.get("named thing")!;
+      const relatedTo = model.slots.lookup.get("related to")!;
+
+      const traverse = (
+        nodes: ClassNode[],
+        part: "subject" | "object" | "predicate"
+      ): ClassNode | SlotNode | null => {
+        for (const node of nodes) {
+          if (node.slotUsage?.[part]) return node.slotUsage[part]!;
+          if (node.parent) {
+            const discoveredType = traverse([node.parent], part);
+            if (discoveredType !== null) return discoveredType;
+          }
+          if (node.mixinParents) {
+            const discoveredType = traverse(node.mixinParents, part);
+            if (discoveredType !== null) return discoveredType;
+          }
+        }
+
+        return part === "predicate" ? relatedTo : namedThing;
+      };
+
+      const subject = traverse([association], "subject") as ClassNode;
+      const predicate = traverse([association], "predicate") as SlotNode;
+      const object = traverse([association], "object") as ClassNode;
+
+      return { subject, predicate, object };
+    };
+
     // DFS over associations
     const traverse = (nodes: ClassNode[]) => {
       for (const association of nodes) {
@@ -280,20 +329,17 @@ function App() {
           !association.abstract &&
           !association.mixin
         ) {
-          const { slotUsage } = association;
+          const inherited = getInheritedSPORanges(association);
 
-          const validSubject = isInRange(
-            subject,
-            slotUsage.subject ?? namedThing
-          );
-          const validObject = isInRange(object, slotUsage.object ?? namedThing);
-          const validPredicate = isInRange(
-            predicate,
-            slotUsage.predicate ?? relatedTo
-          );
+          const validSubject = isInRange(subject, inherited.subject);
+          const validObject = isInRange(object, inherited.object);
+          const validPredicate = isInRange(predicate, inherited.predicate);
 
           if (validSubject && validObject && validPredicate) {
-            validAssociations.push(association);
+            validAssociations.push({
+              association,
+              inheritedRanges: inherited,
+            });
           }
         }
         traverse(association.children);
@@ -372,22 +418,22 @@ function App() {
       {validAssociations.length > 0 && (
         <>
           <h2>Valid Associations</h2>
-          {validAssociations.map((node) => (
-            <details key={node.uuid}>
+          {validAssociations.map(({ association, inheritedRanges }) => (
+            <details key={association.uuid}>
               <summary>
-                <strong>{node.name}</strong>
+                <strong>{association.name}</strong>
               </summary>
 
-              <p>Subject range: {node.slotUsage?.subject?.name ?? "N/A"}</p>
-              <p>Predicate range: {node.slotUsage?.predicate?.name ?? "N/A"}</p>
-              <p>Object range: {node.slotUsage?.object?.name ?? "N/A"}</p>
+              <p>Subject range: {inheritedRanges.subject.name}</p>
+              <p>Predicate range: {inheritedRanges.predicate.name}</p>
+              <p>Object range: {inheritedRanges.object.name}</p>
 
-              {node.slotUsage ? (
+              {association.slotUsage ? (
                 <>
                   <h3>Slots:</h3>
                   <pre>
                     {yaml.dump(
-                      Object.entries(node.slotUsage).reduce(
+                      Object.entries(association.slotUsage).reduce(
                         (acc, [key, val]) =>
                           key === "object" ||
                           key === "subject" ||
