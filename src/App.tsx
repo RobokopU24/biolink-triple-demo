@@ -242,13 +242,13 @@ function App() {
       traverseSlots([slotLookup.get("related to")!]);
 
       setSubjectOptions(namedThings);
-      setSubject(lookup.get("gene")!);
+      setSubject(lookup.get("chemical entity")!);
 
       setPredicateOptions(relatedTo);
       setPredicate(slotLookup.get("affects")!);
 
       setObjectOptions(namedThings);
-      setObject(lookup.get("chemical entity")!);
+      setObject(lookup.get("gene")!);
 
       setTime(performance.now() - t0);
       setInitializing(false);
