@@ -219,6 +219,9 @@ function App() {
         associations: lookup.get("association")!,
       });
 
+      console.log("Classes", lookup);
+      console.log("Slots", slotLookup);
+
       const namedThings: ClassNode[] = [];
       const traverse = (nodes: ClassNode[]) => {
         for (const node of nodes) {
@@ -311,12 +314,12 @@ function App() {
           }
         }
 
-        return part === "predicate" ? relatedTo : namedThing;
+        return null;
       };
 
-      const subject = traverse([association], "subject") as ClassNode;
-      const predicate = traverse([association], "predicate") as SlotNode;
-      const object = traverse([association], "object") as ClassNode;
+      const subject = traverse([association], "subject") ?? namedThing;
+      const predicate = traverse([association], "predicate") ?? relatedTo;
+      const object = traverse([association], "object") ?? namedThing;
 
       return { subject, predicate, object };
     };
