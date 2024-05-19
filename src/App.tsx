@@ -98,6 +98,7 @@ function App() {
         predicate: SlotNode;
         object: ClassNode;
       };
+      level: number;
     }[]
   >([]);
 
@@ -268,6 +269,7 @@ function App() {
         predicate: SlotNode;
         object: ClassNode;
       };
+      level: number;
     }[] = [];
 
     const isInRange = <T extends TreeNode<T>>(
@@ -325,7 +327,7 @@ function App() {
     };
 
     // DFS over associations
-    const traverse = (nodes: ClassNode[]) => {
+    const traverse = (nodes: ClassNode[], level = 0) => {
       for (const association of nodes) {
         if (
           association.slotUsage &&
@@ -342,10 +344,11 @@ function App() {
             validAssociations.push({
               association,
               inheritedRanges: inherited,
+              level,
             });
           }
         }
-        traverse(association.children);
+        traverse(association.children, level + 1);
       }
     };
     traverse([model.associations]);
@@ -421,36 +424,40 @@ function App() {
       {validAssociations.length > 0 && (
         <>
           <h2>Valid Associations</h2>
-          {validAssociations.map(({ association, inheritedRanges }) => (
-            <details key={association.uuid}>
-              <summary>
-                <strong>{association.name}</strong>
-              </summary>
+          {validAssociations
+            .sort((a, b) => b.level - a.level)
+            .map(({ association, inheritedRanges, level }) => (
+              <details key={association.uuid}>
+                <summary>
+                  <strong>
+                    {association.name} ({level})
+                  </strong>
+                </summary>
 
-              <p>Subject range: {inheritedRanges.subject.name}</p>
-              <p>Predicate range: {inheritedRanges.predicate.name}</p>
-              <p>Object range: {inheritedRanges.object.name}</p>
+                <p>Subject range: {inheritedRanges.subject.name}</p>
+                <p>Predicate range: {inheritedRanges.predicate.name}</p>
+                <p>Object range: {inheritedRanges.object.name}</p>
 
-              {association.slotUsage ? (
-                <>
-                  <h3>Slots:</h3>
-                  <pre>
-                    {yaml.dump(
-                      Object.entries(association.slotUsage).reduce(
-                        (acc, [key, val]) =>
-                          key === "object" ||
-                          key === "subject" ||
-                          key === "predicate"
-                            ? acc
-                            : { ...acc, [key]: val },
-                        {}
-                      )
-                    )}
-                  </pre>
-                </>
-              ) : null}
-            </details>
-          ))}
+                {association.slotUsage ? (
+                  <>
+                    <h3>Slots:</h3>
+                    <pre>
+                      {yaml.dump(
+                        Object.entries(association.slotUsage).reduce(
+                          (acc, [key, val]) =>
+                            key === "object" ||
+                            key === "subject" ||
+                            key === "predicate"
+                              ? acc
+                              : { ...acc, [key]: val },
+                          {}
+                        )
+                      )}
+                    </pre>
+                  </>
+                ) : null}
+              </details>
+            ))}
         </>
       )}
     </div>
