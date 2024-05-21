@@ -28,6 +28,8 @@ interface ClassNode extends TreeNode<ClassNode> {
   };
 }
 
+interface Enum {}
+
 const newClassNode = (name: string): ClassNode => ({
   name,
   uuid: crypto.randomUUID(),
@@ -66,7 +68,19 @@ interface Model {
     lookup: Map<string, SlotNode>;
   };
   associations: ClassNode;
+  qualifiers: ClassNode;
+  enums: BiolinkSchema["enums"];
 }
+
+type Association = {
+  association: ClassNode;
+  inheritedRanges: {
+    subject: ClassNode;
+    predicate: SlotNode;
+    object: ClassNode;
+  };
+  level: number;
+};
 
 const buildJsxTree = (rootItems: ClassNode[]) =>
   rootItems.map(({ uuid, name, children }) => (
@@ -90,17 +104,9 @@ function App() {
   const [predicateOptions, setPredicateOptions] = useState<SlotNode[]>([]);
   const [objectOptions, setObjectOptions] = useState<ClassNode[]>([]);
 
-  const [validAssociations, setValidAssociations] = useState<
-    {
-      association: ClassNode;
-      inheritedRanges: {
-        subject: ClassNode;
-        predicate: SlotNode;
-        object: ClassNode;
-      };
-      level: number;
-    }[]
-  >([]);
+  const [validAssociations, setValidAssociations] = useState<Association[]>([]);
+  const [selectedAssociation, setSelectedAssociation] =
+    useState<Association | null>(null);
 
   const [model, setModel] = useState<Model | null>(null);
 
@@ -218,10 +224,13 @@ function App() {
           lookup: slotLookup,
         },
         associations: lookup.get("association")!,
+        qualifiers: slotLookup.get("qualifier")!,
+        enums: flatModel.enums,
       });
 
-      console.log("Classes", lookup);
-      console.log("Slots", slotLookup);
+      // console.log("Classes", lookup);
+      // console.log("Slots", slotLookup);
+      console.log("qualifier", slotLookup.get("qualifier")!);
 
       const namedThings: ClassNode[] = [];
       const traverse = (nodes: ClassNode[]) => {
@@ -262,15 +271,7 @@ function App() {
   useEffect(() => {
     if (!subject || !predicate || !object || !model) return;
 
-    const validAssociations: {
-      association: ClassNode;
-      inheritedRanges: {
-        subject: ClassNode;
-        predicate: SlotNode;
-        object: ClassNode;
-      };
-      level: number;
-    }[] = [];
+    const validAssociations: Association[] = [];
 
     const isInRange = <T extends TreeNode<T>>(
       n: TreeNode<T>,
@@ -329,11 +330,7 @@ function App() {
     // DFS over associations
     const traverse = (nodes: ClassNode[], level = 0) => {
       for (const association of nodes) {
-        if (
-          association.slotUsage &&
-          !association.abstract &&
-          !association.mixin
-        ) {
+        if (association.slotUsage && !association.abstract) {
           const inherited = getInheritedSPORanges(association);
 
           const validSubject = isInRange(subject, inherited.subject);
@@ -353,7 +350,9 @@ function App() {
     };
     traverse([model.associations]);
 
+    validAssociations.sort((a, b) => b.level - a.level);
     setValidAssociations(validAssociations);
+    setSelectedAssociation(validAssociations[0] ?? null);
   }, [subject, predicate, object, model]);
 
   if (!model) return "Loading!";
@@ -421,45 +420,65 @@ function App() {
         </select>
       </label>
 
-      {validAssociations.length > 0 && (
+      <br />
+
+      <label>
+        Association:
+        <select
+          value={selectedAssociation?.association.name}
+          onChange={(e) => {
+            setSelectedAssociation(
+              validAssociations.find(
+                (a) => a.association.name === e.target.value
+              ) ?? null
+            );
+          }}
+        >
+          {validAssociations.map(({ association }) => (
+            <option key={association.uuid} value={association.name}>
+              {association.name}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {/* {validAssociations.length > 0 && (
         <>
           <h2>Valid Associations</h2>
-          {validAssociations
-            .sort((a, b) => b.level - a.level)
-            .map(({ association, inheritedRanges, level }) => (
-              <details key={association.uuid}>
-                <summary>
-                  <strong>
-                    {association.name} ({level})
-                  </strong>
-                </summary>
+          {validAssociations.map(({ association, inheritedRanges, level }) => (
+            <details key={association.uuid}>
+              <summary>
+                <strong>
+                  {association.name} ({level})
+                </strong>
+              </summary>
 
-                <p>Subject range: {inheritedRanges.subject.name}</p>
-                <p>Predicate range: {inheritedRanges.predicate.name}</p>
-                <p>Object range: {inheritedRanges.object.name}</p>
+              <p>Subject range: {inheritedRanges.subject.name}</p>
+              <p>Predicate range: {inheritedRanges.predicate.name}</p>
+              <p>Object range: {inheritedRanges.object.name}</p>
 
-                {association.slotUsage ? (
-                  <>
-                    <h3>Slots:</h3>
-                    <pre>
-                      {yaml.dump(
-                        Object.entries(association.slotUsage).reduce(
-                          (acc, [key, val]) =>
-                            key === "object" ||
-                            key === "subject" ||
-                            key === "predicate"
-                              ? acc
-                              : { ...acc, [key]: val },
-                          {}
-                        )
-                      )}
-                    </pre>
-                  </>
-                ) : null}
-              </details>
-            ))}
+              {association.slotUsage ? (
+                <>
+                  <h3>Slots:</h3>
+                  <pre>
+                    {yaml.dump(
+                      Object.entries(association.slotUsage).reduce(
+                        (acc, [key, val]) =>
+                          key === "object" ||
+                          key === "subject" ||
+                          key === "predicate"
+                            ? acc
+                            : { ...acc, [key]: val },
+                        {}
+                      )
+                    )}
+                  </pre>
+                </>
+              ) : null}
+            </details>
+          ))}
         </>
-      )}
+      )} */}
     </div>
   );
 }
