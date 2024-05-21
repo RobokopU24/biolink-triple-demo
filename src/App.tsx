@@ -28,8 +28,6 @@ interface ClassNode extends TreeNode<ClassNode> {
   };
 }
 
-interface Enum {}
-
 const newClassNode = (name: string): ClassNode => ({
   name,
   uuid: crypto.randomUUID(),
@@ -58,6 +56,9 @@ const newSlotNode = (name: string): SlotNode => ({
   mixin: false,
 });
 
+type Enums = BiolinkSchema["enums"];
+type Enum = Enums[keyof Enums];
+
 interface Model {
   classes: {
     treeRootNodes: ClassNode[];
@@ -69,8 +70,14 @@ interface Model {
   };
   associations: ClassNode;
   qualifiers: ClassNode;
-  enums: BiolinkSchema["enums"];
+  enums: Enums;
 }
+
+type Qualifier = {
+  qualifier: SlotNode;
+  range?: Enum | ClassNode;
+  subpropertyOf?: SlotNode;
+};
 
 type Association = {
   association: ClassNode;
@@ -79,6 +86,7 @@ type Association = {
     predicate: SlotNode;
     object: ClassNode;
   };
+  qualifiers: Qualifier[];
   level: number;
 };
 
@@ -228,9 +236,9 @@ function App() {
         enums: flatModel.enums,
       });
 
-      // console.log("Classes", lookup);
-      // console.log("Slots", slotLookup);
-      console.log("qualifier", slotLookup.get("qualifier")!);
+      console.log("Classes", lookup);
+      console.log("Slots", slotLookup);
+      // console.log("qualifier", slotLookup.get("qualifier")!);
 
       const namedThings: ClassNode[] = [];
       const traverse = (nodes: ClassNode[]) => {
@@ -337,11 +345,48 @@ function App() {
           const validObject = isInRange(object, inherited.object);
           const validPredicate = isInRange(predicate, inherited.predicate);
 
+          const qualifiers: Qualifier[] = Object.entries(association.slotUsage)
+            .map(([qualifierName, properties]) => {
+              if (properties === null) return null;
+              const qualifier = model.slots.lookup.get(qualifierName);
+              if (!qualifier || !isInRange(qualifier, model.qualifiers))
+                return null;
+
+              let range: Enum | ClassNode | undefined = undefined;
+              if (properties.range) {
+                const potentialEnum: Enum | undefined =
+                  model.enums[properties.range];
+                const potentialClassNode: ClassNode | undefined =
+                  model.classes.lookup.get(properties.range);
+
+                if (potentialEnum) range = potentialEnum;
+                if (potentialClassNode) range = potentialClassNode;
+              }
+
+              let subpropertyOf: SlotNode | undefined = undefined;
+              if (
+                properties.subproperty_of &&
+                model.slots.lookup.has(properties.subproperty_of)
+              ) {
+                subpropertyOf = model.slots.lookup.get(
+                  properties.subproperty_of
+                );
+              }
+
+              return {
+                qualifier,
+                range,
+                subpropertyOf,
+              };
+            })
+            .filter(<T,>(q: T | null): q is T => q !== null);
+
           if (validSubject && validObject && validPredicate) {
             validAssociations.push({
               association,
               inheritedRanges: inherited,
               level,
+              qualifiers,
             });
           }
         }
