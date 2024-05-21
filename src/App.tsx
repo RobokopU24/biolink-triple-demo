@@ -100,6 +100,24 @@ const buildJsxTree = (rootItems: ClassNode[]) =>
     </li>
   ));
 
+const flattenTree = <T extends TreeNode<T>>(
+  root: T,
+  includeMixins = true
+): TreeNode<T>[] => {
+  const items: TreeNode<T>[] = [root];
+  if (root.children) {
+    for (const child of root.children) {
+      items.push(...flattenTree(child, includeMixins));
+    }
+  }
+  if (root.mixinChildren && includeMixins === true) {
+    for (const mixinChild of root.mixinChildren) {
+      items.push(...flattenTree(mixinChild, includeMixins));
+    }
+  }
+  return items;
+};
+
 function App() {
   const [initializing, setInitializing] = useState(true);
   const [time, setTime] = useState<null | number>(null);
@@ -236,8 +254,8 @@ function App() {
         enums: flatModel.enums,
       });
 
-      console.log("Classes", lookup);
-      console.log("Slots", slotLookup);
+      // console.log("Classes", lookup);
+      // console.log("Slots", slotLookup);
       // console.log("qualifier", slotLookup.get("qualifier")!);
 
       const namedThings: ClassNode[] = [];
@@ -396,6 +414,8 @@ function App() {
     traverse([model.associations]);
 
     validAssociations.sort((a, b) => b.level - a.level);
+
+    console.log(validAssociations);
     setValidAssociations(validAssociations);
     setSelectedAssociation(validAssociations[0] ?? null);
   }, [subject, predicate, object, model]);
@@ -487,43 +507,37 @@ function App() {
         </select>
       </label>
 
-      {/* {validAssociations.length > 0 && (
-        <>
-          <h2>Valid Associations</h2>
-          {validAssociations.map(({ association, inheritedRanges, level }) => (
-            <details key={association.uuid}>
-              <summary>
-                <strong>
-                  {association.name} ({level})
-                </strong>
-              </summary>
+      <br />
 
-              <p>Subject range: {inheritedRanges.subject.name}</p>
-              <p>Predicate range: {inheritedRanges.predicate.name}</p>
-              <p>Object range: {inheritedRanges.object.name}</p>
+      {selectedAssociation &&
+        selectedAssociation.qualifiers.map(
+          ({ qualifier, range, subpropertyOf }) => (
+            <label key={qualifier.name}>
+              {qualifier.name}
+              {/* THIS needs to be fixed, fix types */}
+              <select>
+                {range &&
+                  // @ts-expect-error idk
+                  (range.permissible_values // Enum
+                    ? // @ts-expect-error idk
+                      Object.keys(range.permissible_values).map((name) => (
+                        <option key={name}>{name}</option>
+                      ))
+                    : // ClassNode
+                      // @ts-expect-error idk
+                      flattenTree(range).map(({ name, uuid }) => (
+                        <option key={uuid}>{name}</option>
+                      )))}
 
-              {association.slotUsage ? (
-                <>
-                  <h3>Slots:</h3>
-                  <pre>
-                    {yaml.dump(
-                      Object.entries(association.slotUsage).reduce(
-                        (acc, [key, val]) =>
-                          key === "object" ||
-                          key === "subject" ||
-                          key === "predicate"
-                            ? acc
-                            : { ...acc, [key]: val },
-                        {}
-                      )
-                    )}
-                  </pre>
-                </>
-              ) : null}
-            </details>
-          ))}
-        </>
-      )} */}
+                {subpropertyOf &&
+                  // @ts-expect-error idk
+                  flattenTree(subpropertyOf).map(({ name, uuid }) => (
+                    <option key={uuid}>{name}</option>
+                  ))}
+              </select>
+            </label>
+          )
+        )}
     </div>
   );
 }
